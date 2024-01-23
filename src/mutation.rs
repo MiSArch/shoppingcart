@@ -108,7 +108,7 @@ impl Mutation {
         if let Err(_) = collection
             .update_one(
                 doc! {"internal_shoppingcart_items.id": input.id },
-                doc! {"$set": {"count": input.count}},
+                doc! {"$set": {"internal_shoppingcart_items.$.count": input.count}},
                 None,
             )
             .await

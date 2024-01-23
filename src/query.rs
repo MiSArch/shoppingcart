@@ -14,6 +14,7 @@ use mongodb::{
     Collection, Database,
 };
 use mongodb_cursor_pagination::{error::CursorError, FindResult, PaginatedCursor};
+use serde::{Deserialize, Serialize};
 
 /// Describes GraphQL shoppingcart queries.
 pub struct Query;
@@ -130,6 +131,13 @@ pub async fn query_shoppingcart(
     }
 }
 
+/// Helper struct for MongoDB projection.
+#[derive(Serialize, Deserialize)]
+struct ProjectedShoppingCart {
+    #[serde(rename = "internal_shoppingcart_items")]
+    internal_shoppingcart_items: Vec<ShoppingCartItem>,
+}
+
 /// Shared function to query a shoppingcart item from a MongoDB collection of shoppingcarts
 ///
 /// * `connection` - MongoDB database connection.
@@ -146,7 +154,8 @@ pub async fn query_shoppingcart_item(
             "_id": 0
         }))
         .build();
-    let projected_collection = collection.clone_with_type::<ShoppingCartItem>();
+    let projected_collection = collection.clone_with_type::<ProjectedShoppingCart>();
+    let message = format!("ShoppingCartItem with UUID id: `{}` not found.", id);
     match projected_collection
         .find_one(
             doc! {"internal_shoppingcart_items": {
@@ -158,17 +167,11 @@ pub async fn query_shoppingcart_item(
         )
         .await
     {
-        Ok(maybe_shoppingcart_item) => match maybe_shoppingcart_item {
-            Some(shoppingcart_item) => Ok(shoppingcart_item),
-            None => {
-                let message = format!("ShoppingCartItem with UUID id: `{}` not found.", id);
-                Err(Error::new(message))
-            }
+        Ok(maybe_shoppingcart_projection) => {
+            maybe_shoppingcart_projection
+                .and_then(|projection| projection.internal_shoppingcart_items.first().cloned())
+                .ok_or_else(|| Error::new(message.clone()))
         },
-        Err(e) => {
-            dbg!(e);
-            let message = format!("ShoppingCartItem with UUID id: `{}` not found.", id);
-            Err(Error::new(message))
-        }
+        Err(_) => Err(Error::new(message))
     }
 }
