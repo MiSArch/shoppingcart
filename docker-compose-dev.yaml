@@ -1,0 +1,36 @@
+services:
+  shoppingcart:
+    extends:
+      file: docker-compose-base.yaml
+      service: shoppingcart
+    build:
+      context: .
+      dockerfile: dev-dockerfile
+    ports:
+      - 8080:8080
+  shoppingcart-db:
+    extends:
+      file: docker-compose-base.yaml
+      service: shoppingcart-db
+  shoppingcart-mongoexpress:
+    image: mongo-express
+    ports:
+      - 8081:8081
+    depends_on:
+      - shoppingcart-db
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://shoppingcart-db:27017
+  shoppingcart-dapr:
+    extends:
+      file: docker-compose-base.yaml
+      service: shoppingcart-dapr
+    volumes:
+      - "./.dapr/dapr-config-minimal.yaml:/config.yaml"
+      - "./.dapr/components:/components"
+  placement:
+    image: "daprio/dapr"
+    command: ["./placement", "-port", "50006"]
+    ports:
+      - 50006:50006
+volumes:
+  shoppingcart-db-data:

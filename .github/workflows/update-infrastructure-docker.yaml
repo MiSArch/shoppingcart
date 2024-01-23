@@ -1,0 +1,29 @@
+name: Update infrastructure-docker submodule
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  schema:
+    name: Update infrastructure-docker submodule
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: "misarch/infrastructure-docker"
+          submodules: true
+      - name: Update submodule
+        run: |
+          cd shoppingcart
+          git checkout ${{ github.sha }}
+      - uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: Update shoppingcart schema
+          branch: update/shoppingcart
+          token: ${{ secrets.INFRASTRUCTURE_DOCKER_PUSH_SECRET }}
+      - name: Set to auto merge
+        run: gh pr merge update/shoppingcart --auto --merge -R misarch/infrastructure-docker
+        env:
+          GH_TOKEN: ${{ secrets.INFRASTRUCTURE_DOCKER_PUSH_SECRET }}
