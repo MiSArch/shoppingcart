@@ -27,6 +27,6 @@ impl PartialOrd for ProductVariant {
 
 impl From<ProductVariant> for Bson {
     fn from(value: ProductVariant) -> Self {
-        Bson::Document(doc!("id": value._id))
+        Bson::Document(doc!("_id": value._id))
     }
 }

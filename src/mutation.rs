@@ -9,7 +9,9 @@ use mongodb::{
     Collection, Database,
 };
 
-use crate::mutation_input_structs::ShoppingCartItemInput;
+use crate::mutation_input_structs::AddShoppingCartItemInput;
+use crate::mutation_input_structs::UpdateShoppingCartItemInput;
+use crate::query::query_shoppingcart_item;
 use crate::shoppingcart_item::ShoppingCartItem;
 use crate::{
     foreign_types::{ProductVariant, User},
@@ -43,7 +45,7 @@ impl Mutation {
             .shopping_cart_items
             .iter()
             .map(|item_input| ShoppingCartItem {
-                _id: Uuid::new(),
+                id: Uuid::new(),
                 count: item_input.count,
                 added_at: current_timestamp,
                 product_variant: ProductVariant {
@@ -89,6 +91,36 @@ impl Mutation {
         .await?;
         let shoppingcart = query_shoppingcart(&collection, input.id).await?;
         Ok(shoppingcart)
+    }
+
+    /// Updates a single shoppingcart item.
+    ///
+    /// * `collection` - MongoDB collection to update.
+    /// * `input` - `UpdateShoppingCartItemInput`.
+    async fn update_shopping_cart_item<'a>(
+        &self,
+        ctx: &Context<'a>,
+        input: UpdateShoppingCartItemInput,
+    ) -> Result<ShoppingCartItem> {
+        let db_client = ctx.data_unchecked::<Database>();
+        let collection: Collection<ShoppingCart> =
+            db_client.collection::<ShoppingCart>("shoppingcarts");
+        if let Err(_) = collection
+            .update_one(
+                doc! {"internal_shoppingcart_items.id": input.id },
+                doc! {"$set": {"count": input.count}},
+                None,
+            )
+            .await
+        {
+            let message = format!(
+                "Updating count of shoppingcart item of id: `{}` failed in MongoDB.",
+                input.id
+            );
+            return Err(Error::new(message));
+        }
+        let shoppingcart_item = query_shoppingcart_item(&collection, input.id).await?;
+        Ok(shoppingcart_item)
     }
 
     /// Deletes shoppingcart of id.
@@ -140,7 +172,7 @@ async fn update_shopping_cart_items(
         let normalized_shopping_cart_items: Vec<ShoppingCartItem> = definitely_shopping_cart_items
             .iter()
             .map(|item_input| ShoppingCartItem {
-                _id: Uuid::new(),
+                id: Uuid::new(),
                 count: item_input.count,
                 added_at: *current_timestamp,
                 product_variant: ProductVariant {
@@ -156,12 +188,12 @@ async fn update_shopping_cart_items(
     Ok(())
 }
 
-/// Checks if product variants in shoppingcart item input are in the system (MongoDB database populated with events).
+/// Checks if product variants in update shoppingcart item inputs are in the system (MongoDB database populated with events).
 ///
 /// Used before adding or modifying shopping cart items.
 async fn validate_shopping_cart_items(
     collection: &Collection<ProductVariant>,
-    shoppingcart_items: &HashSet<ShoppingCartItemInput>,
+    shoppingcart_items: &HashSet<AddShoppingCartItemInput>,
 ) -> Result<()> {
     let product_variant_ids_vec: Vec<Uuid> = shoppingcart_items
         .into_iter()

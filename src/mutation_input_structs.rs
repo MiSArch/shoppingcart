@@ -7,7 +7,7 @@ pub struct AddShoppingCartInput {
     /// UUID of user owning the shoppingcart.
     pub user_id: Uuid,
     /// ShoppingCartItems in shoppingcart.
-    pub shopping_cart_items: HashSet<ShoppingCartItemInput>,
+    pub shopping_cart_items: HashSet<AddShoppingCartItemInput>,
 }
 
 #[derive(SimpleObject, InputObject)]
@@ -15,13 +15,21 @@ pub struct UpdateShoppingCartInput {
     /// UUID of shoppingcart to update.
     pub id: Uuid,
     /// ShoppingCartItems of shoppingcart to update
-    pub shopping_cart_items: Option<HashSet<ShoppingCartItemInput>>,
+    pub shopping_cart_items: Option<HashSet<AddShoppingCartItemInput>>,
 }
 
 #[derive(SimpleObject, InputObject, Eq, Hash, PartialEq)]
-pub struct ShoppingCartItemInput {
+pub struct AddShoppingCartItemInput {
     /// Count of items in basket.
     pub count: u32,
     /// Uuid of product variant.
     pub product_variant_id: Uuid,
+}
+
+#[derive(SimpleObject, InputObject, Eq, Hash, PartialEq)]
+pub struct UpdateShoppingCartItemInput {
+    /// UUID of shoppingcart item to update.
+    pub id: Uuid,
+    /// Count of items in basket.
+    pub count: u32,
 }

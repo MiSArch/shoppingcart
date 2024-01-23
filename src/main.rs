@@ -75,6 +75,7 @@ async fn dapr_connection(db_client: Database) {
         db_client.collection::<ProductVariant>("product_variants");
 
     let callback_service = AppCallbackService { collection };
+    //callback_service.add_product_variant_to_mongodb(Uuid::parse_str("2df77aa0-fa9e-4d09-a263-ff9047af881e").unwrap()).await.unwrap();
 
     info!("AppCallback server listening on: {}", addr);
     // Create a gRPC server with the callback_service.

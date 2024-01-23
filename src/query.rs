@@ -2,12 +2,17 @@ use crate::{
     base_connection::{BaseConnection, FindResultWrapper},
     order_datatypes::ShoppingCartOrderInput,
     shoppingcart_connection::ShoppingCartConnection,
+    shoppingcart_item::ShoppingCartItem,
     ShoppingCart,
 };
 use async_graphql::{Context, Error, Object, Result};
 use bson::Document;
 use bson::Uuid;
-use mongodb::{bson::doc, options::FindOptions, Collection, Database};
+use mongodb::{
+    bson::doc,
+    options::{FindOneOptions, FindOptions},
+    Collection, Database,
+};
 use mongodb_cursor_pagination::{error::CursorError, FindResult, PaginatedCursor};
 
 /// Describes GraphQL shoppingcart queries.
@@ -75,6 +80,31 @@ impl Query {
             db_client.collection::<ShoppingCart>("shoppingcarts");
         query_shoppingcart(&collection, id).await
     }
+
+    /// Retrieves shoppingcart item of specific id.
+    async fn shoppingcart_item<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(desc = "UUID of shoppingcart to retrieve.")] id: Uuid,
+    ) -> Result<ShoppingCartItem> {
+        let db_client = ctx.data_unchecked::<Database>();
+        let collection: Collection<ShoppingCart> =
+            db_client.collection::<ShoppingCart>("shoppingcarts");
+        query_shoppingcart_item(&collection, id).await
+    }
+
+    /// Entity resolver for shoppingcart item of specific key.
+    #[graphql(entity)]
+    async fn shoppingcart_item_entity_resolver<'a>(
+        &self,
+        ctx: &Context<'a>,
+        #[graphql(key, desc = "UUID of shoppingcart to retrieve.")] id: Uuid,
+    ) -> Result<ShoppingCartItem> {
+        let db_client = ctx.data_unchecked::<Database>();
+        let collection: Collection<ShoppingCart> =
+            db_client.collection::<ShoppingCart>("shoppingcarts");
+        query_shoppingcart_item(&collection, id).await
+    }
 }
 
 /// Shared function to query a shoppingcart from a MongoDB collection of shoppingcarts
@@ -95,6 +125,49 @@ pub async fn query_shoppingcart(
         },
         Err(_) => {
             let message = format!("ShoppingCart with UUID id: `{}` not found.", id);
+            Err(Error::new(message))
+        }
+    }
+}
+
+/// Shared function to query a shoppingcart item from a MongoDB collection of shoppingcarts
+///
+/// * `connection` - MongoDB database connection.
+/// * `stringified_uuid` - UUID of shoppingcart item as String.
+///
+/// Specifies options with projection.
+pub async fn query_shoppingcart_item(
+    collection: &Collection<ShoppingCart>,
+    id: Uuid,
+) -> Result<ShoppingCartItem> {
+    let find_options = FindOneOptions::builder()
+        .projection(Some(doc! {
+            "internal_shoppingcart_items.$": 1,
+            "_id": 0
+        }))
+        .build();
+    let projected_collection = collection.clone_with_type::<ShoppingCartItem>();
+    match projected_collection
+        .find_one(
+            doc! {"internal_shoppingcart_items": {
+                "$elemMatch": {
+                    "id": id
+                }
+            }},
+            Some(find_options),
+        )
+        .await
+    {
+        Ok(maybe_shoppingcart_item) => match maybe_shoppingcart_item {
+            Some(shoppingcart_item) => Ok(shoppingcart_item),
+            None => {
+                let message = format!("ShoppingCartItem with UUID id: `{}` not found.", id);
+                Err(Error::new(message))
+            }
+        },
+        Err(e) => {
+            dbg!(e);
+            let message = format!("ShoppingCartItem with UUID id: `{}` not found.", id);
             Err(Error::new(message))
         }
     }
