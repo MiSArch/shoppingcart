@@ -3,14 +3,6 @@ use bson::{doc, Bson, Uuid};
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, hash::Hash};
 
-/// Foreign type of a user.
-#[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Clone, SimpleObject)]
-#[graphql(unresolvable)]
-pub struct User {
-    /// UUID of the user.
-    pub _id: Uuid,
-}
-
 /// Foreign type of a product variant.
 #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Copy, Clone, SimpleObject)]
 #[graphql(unresolvable)]

@@ -12,7 +12,6 @@ use axum::{
 use clap::{arg, command, Parser};
 use simple_logger::SimpleLogger;
 
-use foreign_types::User;
 use log::info;
 use mongodb::{bson::DateTime, options::ClientOptions, Client, Collection, Database};
 
@@ -31,6 +30,9 @@ use query::Query;
 mod mutation;
 use mutation::Mutation;
 
+mod user;
+use user::User;
+
 mod app_callback_service;
 use app_callback_service::AppCallbackService;
 
@@ -40,7 +42,6 @@ mod base_connection;
 mod foreign_types;
 mod mutation_input_structs;
 mod order_datatypes;
-mod product_variant_connection;
 mod shoppingcart_connection;
 mod shoppingcart_item_connection;
 

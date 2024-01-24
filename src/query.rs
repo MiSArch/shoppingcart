@@ -1,19 +1,9 @@
-use crate::{
-    base_connection::{BaseConnection, FindResultWrapper},
-    order_datatypes::ShoppingCartOrderInput,
-    shoppingcart_connection::ShoppingCartConnection,
-    shoppingcart_item::ShoppingCartItem,
-    ShoppingCart,
-};
+use crate::{shoppingcart_item::ShoppingCartItem, user::User, ShoppingCart};
 use async_graphql::{Context, Error, Object, Result};
-use bson::Document;
+
 use bson::Uuid;
-use mongodb::{
-    bson::doc,
-    options::{FindOneOptions, FindOptions},
-    Collection, Database,
-};
-use mongodb_cursor_pagination::{error::CursorError, FindResult, PaginatedCursor};
+use mongodb::{bson::doc, options::FindOneOptions, Collection, Database};
+
 use serde::{Deserialize, Serialize};
 
 /// Describes GraphQL shoppingcart queries.
@@ -21,40 +11,13 @@ pub struct Query;
 
 #[Object]
 impl Query {
-    /// Retrieves all shoppingcarts.
-    async fn shoppingcarts<'a>(
+    /// Retrieves user owning shoppingcarts.
+    async fn user<'a>(
         &self,
-        ctx: &Context<'a>,
-        #[graphql(desc = "Describes that the `first` N shoppingcarts should be retrieved.")]
-        first: Option<u32>,
-        #[graphql(desc = "Describes how many shoppingcarts should be skipped at the beginning.")]
-        skip: Option<u64>,
-        #[graphql(desc = "Specifies the order in which shoppingcarts are retrieved.")]
-        order_by: Option<ShoppingCartOrderInput>,
-    ) -> Result<ShoppingCartConnection> {
-        let db_client = ctx.data_unchecked::<Database>();
-        let collection: Collection<ShoppingCart> =
-            db_client.collection::<ShoppingCart>("shoppingcarts");
-        let shoppingcart_order = order_by.unwrap_or_default();
-        let sorting_doc = doc! {shoppingcart_order.field.unwrap_or_default().as_str(): i32::from(shoppingcart_order.direction.unwrap_or_default())};
-        let find_options = FindOptions::builder()
-            .skip(skip)
-            .limit(first.map(|v| i64::from(v)))
-            .sort(sorting_doc)
-            .build();
-        let document_collection = collection.clone_with_type::<Document>();
-        let maybe_find_results: Result<FindResult<ShoppingCart>, CursorError> =
-            PaginatedCursor::new(Some(find_options.clone()), None, None)
-                .find(&document_collection, None)
-                .await;
-        match maybe_find_results {
-            Ok(find_results) => {
-                let find_result_wrapper = FindResultWrapper(find_results);
-                let connection = Into::<BaseConnection<ShoppingCart>>::into(find_result_wrapper);
-                Ok(Into::<ShoppingCartConnection>::into(connection))
-            }
-            Err(_) => return Err(Error::new("Retrieving shoppingcarts failed in MongoDB.")),
-        }
+        _ctx: &Context<'a>,
+        #[graphql(desc = "UUID of user to retrieve.")] id: Uuid,
+    ) -> Result<User> {
+        Ok(User { _id: id })
     }
 
     /// Retrieves shoppingcart of specific id.

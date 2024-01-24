@@ -17,10 +17,15 @@
   pub struct ShoppingCart {
       pub id: Uuid,
       pub user_id: Uuid,
-      pub product_variants: HashSet<ProductVariant>,
-      pub name: String,
-      pub created_at: DateTime,
+      pub shopping_cart_items: HashSet<ShoppingCartItem>,
       pub last_updated_at: DateTime,
+  }
+
+  pub struct ShoppingCartItem {
+    pub _id: Uuid,
+    pub count: u32,
+    pub added_at: DateTime,
+    pub product_variant: ProductVariant,
   }
 
   /// Foreign ProductVariant

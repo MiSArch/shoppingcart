@@ -15,8 +15,9 @@ use crate::mutation_input_structs::UpdateShoppingCartItemInput;
 use crate::query::query_shoppingcart_item;
 use crate::query::query_shoppingcart_item_by_product_variant_id_and_shopping_cart;
 use crate::shoppingcart_item::ShoppingCartItem;
+use crate::user::User;
 use crate::{
-    foreign_types::{ProductVariant, User},
+    foreign_types::ProductVariant,
     mutation_input_structs::{AddShoppingCartInput, UpdateShoppingCartInput},
     query::query_shoppingcart,
     shoppingcart::ShoppingCart,

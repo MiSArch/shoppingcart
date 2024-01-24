@@ -9,10 +9,10 @@ use bson::Uuid;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    foreign_types::User,
     order_datatypes::{CommonOrderInput, OrderDirection},
     shoppingcart_item::ShoppingCartItem,
     shoppingcart_item_connection::ShoppingCartItemConnection,
+    user::User,
 };
 
 /// The ShoppingCart of a user.
