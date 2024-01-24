@@ -3,16 +3,8 @@ use bson::Uuid;
 use std::collections::HashSet;
 
 #[derive(SimpleObject, InputObject)]
-pub struct AddShoppingCartInput {
-    /// UUID of user owning the shoppingcart.
-    pub user_id: Uuid,
-    /// ShoppingCartItems in shoppingcart.
-    pub shopping_cart_items: HashSet<ShoppingCartItemInput>,
-}
-
-#[derive(SimpleObject, InputObject)]
 pub struct UpdateShoppingCartInput {
-    /// UUID of shoppingcart to update.
+    /// UUID of user owning shopping cart.
     pub id: Uuid,
     /// ShoppingCartItems of shoppingcart to update
     pub shopping_cart_items: Option<HashSet<ShoppingCartItemInput>>,
@@ -28,7 +20,7 @@ pub struct ShoppingCartItemInput {
 
 #[derive(SimpleObject, InputObject)]
 pub struct AddShoppingCartItemInput {
-    /// UUID of shoppingcart to add the item to.
+    /// UUID of user owning the shopping cart.
     pub id: Uuid,
     /// ShoppingCartItem in shoppingcart to update
     pub shopping_cart_item: ShoppingCartItemInput,

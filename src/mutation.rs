@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use async_graphql::{Context, Error, Object, Result};
-use bson::Bson;
 use bson::Uuid;
 use futures::TryStreamExt;
 use mongodb::{
@@ -9,18 +8,17 @@ use mongodb::{
     Collection, Database,
 };
 
-use crate::mutation_input_structs::AddShoppingCartItemInput;
 use crate::mutation_input_structs::ShoppingCartItemInput;
 use crate::mutation_input_structs::UpdateShoppingCartItemInput;
 use crate::query::query_shoppingcart_item;
-use crate::query::query_shoppingcart_item_by_product_variant_id_and_shopping_cart;
+use crate::query::query_shoppingcart_item_by_product_variant_id_and_user_id;
 use crate::shoppingcart_item::ShoppingCartItem;
+use crate::{mutation_input_structs::AddShoppingCartItemInput, query::query_user};
+
 use crate::user::User;
 use crate::{
-    foreign_types::ProductVariant,
-    mutation_input_structs::{AddShoppingCartInput, UpdateShoppingCartInput},
-    query::query_shoppingcart,
-    shoppingcart::ShoppingCart,
+    foreign_types::ProductVariant, mutation_input_structs::UpdateShoppingCartInput,
+    query::query_shoppingcart, shoppingcart::ShoppingCart,
 };
 
 /// Describes GraphQL shoppingcart mutations.
@@ -28,49 +26,6 @@ pub struct Mutation;
 
 #[Object]
 impl Mutation {
-    /// Adds a shoppingcart with a user_id, a list of product_variant_ids and a name.
-    ///
-    /// Formats UUIDs as hyphenated lowercase Strings.
-    async fn add_shoppingcart<'a>(
-        &self,
-        ctx: &Context<'a>,
-        #[graphql(desc = "AddShoppingCartInput")] input: AddShoppingCartInput,
-    ) -> Result<ShoppingCart> {
-        let db_client = ctx.data_unchecked::<Database>();
-        let collection: Collection<ShoppingCart> =
-            db_client.collection::<ShoppingCart>("shoppingcarts");
-        let product_variant_collection: Collection<ProductVariant> =
-            db_client.collection::<ProductVariant>("product_variants");
-        validate_shopping_cart_items(&product_variant_collection, &input.shopping_cart_items)
-            .await?;
-        let current_timestamp = DateTime::now();
-        let normalized_shopping_cart_items: HashSet<ShoppingCartItem> = input
-            .shopping_cart_items
-            .iter()
-            .map(|item_input| ShoppingCartItem {
-                _id: Uuid::new(),
-                count: item_input.count,
-                added_at: current_timestamp,
-                product_variant: ProductVariant {
-                    _id: item_input.product_variant_id,
-                },
-            })
-            .collect();
-        let shoppingcart = ShoppingCart {
-            _id: Uuid::new(),
-            user: User { _id: input.user_id },
-            internal_shoppingcart_items: normalized_shopping_cart_items,
-            last_updated_at: current_timestamp,
-        };
-        match collection.insert_one(shoppingcart, None).await {
-            Ok(result) => {
-                let id = uuid_from_bson(result.inserted_id)?;
-                query_shoppingcart(&collection, id).await
-            }
-            Err(_) => Err(Error::new("Adding shoppingcart failed in MongoDB.")),
-        }
-    }
-
     /// Updates shoppingcart_items of a specific shoppingcart referenced with an id.
     ///
     /// Formats UUIDs as hyphenated lowercase Strings.
@@ -80,8 +35,7 @@ impl Mutation {
         #[graphql(desc = "UpdateShoppingCartInput")] input: UpdateShoppingCartInput,
     ) -> Result<ShoppingCart> {
         let db_client = ctx.data_unchecked::<Database>();
-        let collection: Collection<ShoppingCart> =
-            db_client.collection::<ShoppingCart>("shoppingcarts");
+        let collection: Collection<User> = db_client.collection::<User>("users");
         let product_variant_collection: Collection<ProductVariant> =
             db_client.collection::<ProductVariant>("product_variants");
         let current_timestamp = DateTime::now();
@@ -105,9 +59,12 @@ impl Mutation {
         #[graphql(desc = "AddShoppingCartItemInput")] input: AddShoppingCartItemInput,
     ) -> Result<ShoppingCartItem> {
         let db_client = ctx.data_unchecked::<Database>();
-        let collection: Collection<ShoppingCart> =
-            db_client.collection::<ShoppingCart>("shoppingcarts");
-        match query_shoppingcart_item_by_product_variant_id_and_shopping_cart(
+        let collection: Collection<User> = db_client.collection::<User>("users");
+        let product_variant_collection: Collection<ProductVariant> =
+            db_client.collection::<ProductVariant>("product_variants");
+        validate_user(&collection, input.id).await?;
+        validate_shopping_cart_item(&product_variant_collection, &input.shopping_cart_item).await?;
+        match query_shoppingcart_item_by_product_variant_id_and_user_id(
             &collection,
             input.shopping_cart_item.product_variant_id,
             input.id,
@@ -129,12 +86,11 @@ impl Mutation {
         #[graphql(desc = "UpdateShoppingCartItemInput")] input: UpdateShoppingCartItemInput,
     ) -> Result<ShoppingCartItem> {
         let db_client = ctx.data_unchecked::<Database>();
-        let collection: Collection<ShoppingCart> =
-            db_client.collection::<ShoppingCart>("shoppingcarts");
+        let collection: Collection<User> = db_client.collection::<User>("users");
         if let Err(_) = collection
             .update_one(
-                doc! {"internal_shoppingcart_items._id": input.id },
-                doc! {"$set": {"internal_shoppingcart_items.$.count": input.count}},
+                doc! {"shoppingcart.internal_shoppingcart_items._id": input.id },
+                doc! {"$set": {"shoppingcart.internal_shoppingcart_items.$.count": input.count}},
                 None,
             )
             .await
@@ -156,12 +112,11 @@ impl Mutation {
         #[graphql(desc = "UUID of shoppingcart item to delete.")] id: Uuid,
     ) -> Result<bool> {
         let db_client = ctx.data_unchecked::<Database>();
-        let collection: Collection<ShoppingCart> =
-            db_client.collection::<ShoppingCart>("shoppingcarts");
+        let collection: Collection<User> = db_client.collection::<User>("users");
         if let Err(_) = collection
             .update_one(
-                doc! {"internal_shoppingcart_items._id": id },
-                doc! {"$pull": {"internal_shoppingcart_items": {"_id": id}}},
+                doc! {"shoppingcart.internal_shoppingcart_items._id": id },
+                doc! {"$pull": {"shoppingcart.internal_shoppingcart_items": {"_id": id}}},
                 None,
             )
             .await
@@ -174,38 +129,6 @@ impl Mutation {
         }
         Ok(true)
     }
-
-    /// Deletes shoppingcart of id.
-    async fn delete_shoppingcart<'a>(
-        &self,
-        ctx: &Context<'a>,
-        #[graphql(desc = "UUID of shoppingcart to delete.")] id: Uuid,
-    ) -> Result<bool> {
-        let db_client = ctx.data_unchecked::<Database>();
-        let collection: Collection<ShoppingCart> =
-            db_client.collection::<ShoppingCart>("shoppingcarts");
-        if let Err(_) = collection.delete_one(doc! {"_id": id }, None).await {
-            let message = format!("Deleting shoppingcart of id: `{}` failed in MongoDB.", id);
-            return Err(Error::new(message));
-        }
-        Ok(true)
-    }
-}
-
-/// Extracts UUID from Bson.
-///
-/// Adding a shoppingcart returns a UUID in a Bson document. This function helps to extract the UUID.
-fn uuid_from_bson(bson: Bson) -> Result<Uuid> {
-    match bson {
-        Bson::Binary(id) => Ok(id.to_uuid()?),
-        _ => {
-            let message = format!(
-                "Returned id: `{}` needs to be a Binary in order to be parsed as a Uuid",
-                bson
-            );
-            Err(Error::new(message))
-        }
-    }
 }
 
 /// Updates shopping cart items of a shoppingcart.
@@ -213,7 +136,7 @@ fn uuid_from_bson(bson: Bson) -> Result<Uuid> {
 /// * `collection` - MongoDB collection to update.
 /// * `input` - `UpdateShoppingCartInput`.
 async fn update_shopping_cart_items(
-    collection: &Collection<ShoppingCart>,
+    collection: &Collection<User>,
     product_variant_collection: &Collection<ProductVariant>,
     input: &UpdateShoppingCartInput,
     current_timestamp: &DateTime,
@@ -221,6 +144,7 @@ async fn update_shopping_cart_items(
     if let Some(definitely_shopping_cart_items) = &input.shopping_cart_items {
         validate_shopping_cart_items(&product_variant_collection, definitely_shopping_cart_items)
             .await?;
+        validate_user(&collection, input.id).await?;
         let normalized_shopping_cart_items: Vec<ShoppingCartItem> = definitely_shopping_cart_items
             .iter()
             .map(|item_input| ShoppingCartItem {
@@ -232,7 +156,7 @@ async fn update_shopping_cart_items(
                 },
             })
             .collect();
-        if let Err(_) = collection.update_one(doc!{"_id": input.id }, doc!{"$set": {"internal_shoppingcart_items": normalized_shopping_cart_items, "last_updated_at": current_timestamp}}, None).await {
+        if let Err(_) = collection.update_one(doc!{"_id": input.id }, doc!{"$set": {"shoppingcart.internal_shoppingcart_items": normalized_shopping_cart_items, "shoppingcart.last_updated_at": current_timestamp}}, None).await {
             let message = format!("Updating product_variant_ids of shoppingcart of id: `{}` failed in MongoDB.", input.id);
             return Err(Error::new(message))
         }
@@ -281,7 +205,7 @@ async fn validate_shopping_cart_items(
 /// * `collection` - MongoDB collection to add the shoppingcart item to.
 /// * `input` - `AddShoppingCartItemInput`.
 async fn add_shoppingcart_item_to_monogdb(
-    collection: &Collection<ShoppingCart>,
+    collection: &Collection<User>,
     input: AddShoppingCartItemInput,
 ) -> Result<ShoppingCartItem> {
     let current_timestamp = DateTime::now();
@@ -296,7 +220,7 @@ async fn add_shoppingcart_item_to_monogdb(
     if let Err(_) = collection
         .update_one(
             doc! {"_id": input.id },
-            doc! {"$push": {"internal_shoppingcart_items": &shoppingcart_item}},
+            doc! {"$push": {"shoppingcart.internal_shoppingcart_items": &shoppingcart_item}},
             None,
         )
         .await
@@ -308,4 +232,38 @@ async fn add_shoppingcart_item_to_monogdb(
         return Err(Error::new(message));
     }
     Ok(shoppingcart_item)
+}
+
+/// Checks if user is in the system (MongoDB database populated with events).
+///
+/// Used before adding shoppingcart item.
+async fn validate_user(collection: &Collection<User>, id: Uuid) -> Result<()> {
+    query_user(&collection, id).await.map(|_| ())
+}
+
+/// Checks if product variant in shoppingcart item input is in the system (MongoDB database populated with events).
+///
+/// Used before adding or modifying shopping cart items.
+/// This is a separate function from validate_shopping_cart_items which is designed for only checking one ShoppingCartItem.
+async fn validate_shopping_cart_item(
+    collection: &Collection<ProductVariant>,
+    shoppingcart_item_input: &ShoppingCartItemInput,
+) -> Result<()> {
+    let message = format!(
+        "Product variant with the UUID: `{}` is not present in the system.",
+        shoppingcart_item_input.product_variant_id
+    );
+    match collection
+        .find_one(
+            doc! {"_id": shoppingcart_item_input.product_variant_id },
+            None,
+        )
+        .await
+    {
+        Ok(maybe_product_variant) => match maybe_product_variant {
+            Some(_) => Ok(()),
+            None => Err(Error::new(message)),
+        },
+        Err(_) => Err(Error::new(message)),
+    }
 }

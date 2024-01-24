@@ -1,32 +1,34 @@
 use std::{cmp::Ordering, collections::HashSet};
 
-use async_graphql::{
-    connection::{Edge, EmptyFields},
-    ComplexObject, OutputType, Result, SimpleObject,
-};
+use async_graphql::{ComplexObject, Result, SimpleObject};
+
 use bson::datetime::DateTime;
-use bson::Uuid;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
     order_datatypes::{CommonOrderInput, OrderDirection},
     shoppingcart_item::ShoppingCartItem,
     shoppingcart_item_connection::ShoppingCartItemConnection,
-    user::User,
 };
 
 /// The ShoppingCart of a user.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, SimpleObject)]
 #[graphql(complex)]
 pub struct ShoppingCart {
-    /// ShoppingCart UUID.
-    pub _id: Uuid,
-    /// User.
-    pub user: User,
     /// Timestamp when ShoppingCart was last updated.
     pub last_updated_at: DateTime,
     #[graphql(skip)]
     pub internal_shoppingcart_items: HashSet<ShoppingCartItem>,
+}
+
+impl ShoppingCart {
+    pub fn new() -> Self {
+        Self {
+            last_updated_at: DateTime::now(),
+            internal_shoppingcart_items: HashSet::new(),
+        }
+    }
 }
 
 #[ComplexObject]
@@ -81,22 +83,4 @@ fn sort_shoppingcart_items(
         true => Ordering::Less,
         false => Ordering::Greater,
     });
-}
-
-impl From<ShoppingCart> for Uuid {
-    fn from(value: ShoppingCart) -> Self {
-        value._id
-    }
-}
-
-pub struct NodeWrapper<Node>(pub Node);
-
-impl<Node> From<NodeWrapper<Node>> for Edge<uuid::Uuid, Node, EmptyFields>
-where
-    Node: Into<uuid::Uuid> + OutputType + Clone,
-{
-    fn from(value: NodeWrapper<Node>) -> Self {
-        let uuid = Into::<uuid::Uuid>::into(value.0.clone());
-        Edge::new(uuid, value.0)
-    }
 }

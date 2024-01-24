@@ -31,18 +31,16 @@ mod mutation;
 use mutation::Mutation;
 
 mod user;
-use user::User;
 
 mod app_callback_service;
 use app_callback_service::AppCallbackService;
 
-use crate::foreign_types::ProductVariant;
+use crate::{foreign_types::ProductVariant, user::User};
 
 mod base_connection;
 mod foreign_types;
 mod mutation_input_structs;
 mod order_datatypes;
-mod shoppingcart_connection;
 mod shoppingcart_item_connection;
 
 /// Builds the GraphiQL frontend.
@@ -72,12 +70,18 @@ async fn db_connection() -> Client {
 /// Adds AppCallbackService which defines pub/sub interaction with Dapr.
 async fn dapr_connection(db_client: Database) {
     let addr = "[::]:50051".parse().unwrap();
-    let collection: mongodb::Collection<ProductVariant> =
+    let product_variant_collection: mongodb::Collection<ProductVariant> =
         db_client.collection::<ProductVariant>("product_variants");
+    let user_collection: mongodb::Collection<User> = db_client.collection::<User>("users");
 
-    let callback_service = AppCallbackService { collection };
-    //callback_service.add_product_variant_to_mongodb(Uuid::parse_str("2df77aa0-fa9e-4d09-a263-ff9047af881e").unwrap()).await.unwrap();
-
+    let callback_service = AppCallbackService {
+        product_variant_collection,
+        user_collection,
+    };
+    //callback_service
+    //    .add_user_to_mongodb(Uuid::parse_str("cef15b33-b7f6-45ab-a697-cdf136ec5289").unwrap())
+    //    .await
+    //    .unwrap();
     info!("AppCallback server listening on: {}", addr);
     // Create a gRPC server with the callback_service.
     TonicServer::builder()
@@ -91,8 +95,6 @@ async fn dapr_connection(db_client: Database) {
 #[allow(dead_code)]
 async fn insert_dummy_data(collection: &Collection<ShoppingCart>) {
     let shoppingcarts: Vec<ShoppingCart> = vec![ShoppingCart {
-        _id: Uuid::new(),
-        user: User { _id: Uuid::new() },
         internal_shoppingcart_items: HashSet::new(),
         last_updated_at: DateTime::now(),
     }];
