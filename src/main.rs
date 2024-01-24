@@ -18,7 +18,6 @@ use mongodb::{bson::DateTime, options::ClientOptions, Client, Collection, Databa
 use dapr::dapr::dapr::proto::runtime::v1::app_callback_server::AppCallbackServer;
 use tonic::transport::Server as TonicServer;
 
-use bson::Uuid;
 use shoppingcart::ShoppingCart;
 
 mod shoppingcart;
