@@ -167,11 +167,42 @@ pub async fn query_shoppingcart_item(
         )
         .await
     {
-        Ok(maybe_shoppingcart_projection) => {
-            maybe_shoppingcart_projection
-                .and_then(|projection| projection.internal_shoppingcart_items.first().cloned())
-                .ok_or_else(|| Error::new(message.clone()))
-        },
-        Err(_) => Err(Error::new(message))
+        Ok(maybe_shoppingcart_projection) => maybe_shoppingcart_projection
+            .and_then(|projection| projection.internal_shoppingcart_items.first().cloned())
+            .ok_or_else(|| Error::new(message.clone())),
+        Err(_) => Err(Error::new(message)),
+    }
+}
+
+/// Shared function to query a shoppingcart item from a MongoDB collection of shoppingcarts
+///
+/// * `connection` - MongoDB database connection.
+/// * `stringified_uuid` - UUID of shoppingcart item as String.
+///
+/// Specifies options with projection.
+pub async fn query_shoppingcart_item_by_product_variant_id_and_shopping_cart(
+    collection: &Collection<ShoppingCart>,
+    product_variant_id: Uuid,
+    shopping_cart_id: Uuid,
+) -> Result<ShoppingCartItem> {
+    let find_options = FindOneOptions::builder()
+        .projection(Some(doc! {
+            "internal_shoppingcart_items.$": 1,
+            "_id": 0
+        }))
+        .build();
+    let projected_collection = collection.clone_with_type::<ProjectedShoppingCart>();
+    let message = format!("ShoppingCartItem referencing product variant of UUID: `{}` in shopping cart of UUID: `{}` not found.", product_variant_id, shopping_cart_id);
+    match projected_collection
+        .find_one(
+            doc! {"_id": shopping_cart_id, "internal_shoppingcart_items.product_variant._id": product_variant_id},
+            Some(find_options),
+        )
+        .await
+    {
+        Ok(maybe_shoppingcart_projection) => maybe_shoppingcart_projection
+            .and_then(|projection| projection.internal_shoppingcart_items.first().cloned())
+            .ok_or_else(|| Error::new(message.clone())),
+        Err(_) => Err(Error::new(message)),
     }
 }
