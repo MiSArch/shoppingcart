@@ -11,18 +11,7 @@ pub struct Query;
 
 #[Object]
 impl Query {
-    /// Retrieves user owning a shoppingcart.
-    async fn user<'a>(
-        &self,
-        ctx: &Context<'a>,
-        #[graphql(desc = "UUID of user to retrieve.")] id: Uuid,
-    ) -> Result<User> {
-        let db_client = ctx.data_unchecked::<Database>();
-        let collection: Collection<User> = db_client.collection::<User>("users");
-        query_user(&collection, id).await
-    }
-
-    /// Entity resolver for user owning a shoppingcart
+    /// Entity resolver for user of specific id.
     #[graphql(entity)]
     async fn user_entity_resolver<'a>(
         &self,
@@ -45,7 +34,7 @@ impl Query {
         query_shoppingcart_item(&collection, id).await
     }
 
-    /// Entity resolver for shoppingcart item of specific key.
+    /// Entity resolver for shoppingcart item of specific id.
     #[graphql(entity)]
     async fn shoppingcart_item_entity_resolver<'a>(
         &self,
