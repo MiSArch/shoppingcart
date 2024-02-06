@@ -22,8 +22,6 @@ RUN cargo build --release --bin misarch-shoppingcart
 # We do not need the Rust toolchain to run the binary!
 FROM debian:bookworm-slim AS runtime
 
-RUN apt update && apt install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /misarch-shoppingcart
 COPY --from=builder /misarch-shoppingcart/target/release/misarch-shoppingcart /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/misarch-shoppingcart"]
