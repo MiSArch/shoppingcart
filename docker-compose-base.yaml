@@ -30,7 +30,7 @@ services:
       [
         "./daprd",
         "--app-id",
-        "wishlist",
+        "shoppingcart",
         "--app-port",
         "8080",
         "--app-protocol",
