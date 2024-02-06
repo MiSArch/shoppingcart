@@ -12,7 +12,7 @@ pub struct Query;
 #[Object]
 impl Query {
     /// Entity resolver for user of specific id.
-    #[graphql(entity)]
+    //#[graphql(entity)]
     async fn user_entity_resolver<'a>(
         &self,
         ctx: &Context<'a>,
