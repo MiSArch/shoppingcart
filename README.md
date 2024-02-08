@@ -11,12 +11,10 @@
 
 ### What it can do
 
-- CRUD shoppingcarts:
+- CRUD shoppingcarts (`ShoppingCart` is directly attached to user with UUID, therefore does not need its own UUID):
 
   ```rust
   pub struct ShoppingCart {
-      pub id: Uuid,
-      pub user_id: Uuid,
       pub shopping_cart_items: HashSet<ShoppingCartItem>,
       pub last_updated_at: DateTime,
   }
