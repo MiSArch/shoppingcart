@@ -8,11 +8,11 @@ use mongodb::{
     Collection, Database,
 };
 
-use crate::mutation_input_structs::ShoppingCartItemInput;
 use crate::mutation_input_structs::UpdateShoppingCartItemInput;
 use crate::query::query_shoppingcart_item;
 use crate::query::query_shoppingcart_item_by_product_variant_id_and_user_id;
 use crate::shoppingcart_item::ShoppingCartItem;
+use crate::{authentication::authenticate_user, mutation_input_structs::ShoppingCartItemInput};
 use crate::{mutation_input_structs::AddShoppingCartItemInput, query::query_user};
 
 use crate::user::User;
@@ -34,6 +34,7 @@ impl Mutation {
         ctx: &Context<'a>,
         #[graphql(desc = "UpdateShoppingCartInput")] input: UpdateShoppingCartInput,
     ) -> Result<ShoppingCart> {
+        authenticate_user(&ctx, input.id)?;
         let db_client = ctx.data_unchecked::<Database>();
         let collection: Collection<User> = db_client.collection::<User>("users");
         let product_variant_collection: Collection<ProductVariant> =
@@ -58,6 +59,7 @@ impl Mutation {
         ctx: &Context<'a>,
         #[graphql(desc = "AddShoppingCartItemInput")] input: AddShoppingCartItemInput,
     ) -> Result<ShoppingCartItem> {
+        authenticate_user(&ctx, input.id)?;
         let db_client = ctx.data_unchecked::<Database>();
         let collection: Collection<User> = db_client.collection::<User>("users");
         let product_variant_collection: Collection<ProductVariant> =

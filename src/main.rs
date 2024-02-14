@@ -29,6 +29,8 @@ use mutation::Mutation;
 mod user;
 use user::User;
 
+mod authentication;
+
 mod http_event_service;
 use http_event_service::{list_topic_subscriptions, on_topic_event, HttpEventServiceState};
 
