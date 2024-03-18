@@ -97,9 +97,9 @@ async fn insert_dummy_data(collection: &Collection<ShoppingCart>) {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Generates GraphQL schema in `./schemas/shoppingcart.graphql`.
+    /// Generates GraphQL schemas `shoppingcart.graphql` and `shoppingcart-unfederated.graphql` in `./schemas`.
     #[arg(long)]
-    generate_schema: bool,
+    generate_schemas: bool,
 }
 
 /// Activates logger and parses argument for optional schema generation. Otherwise starts gRPC and GraphQL server.
@@ -108,16 +108,26 @@ async fn main() -> std::io::Result<()> {
     SimpleLogger::new().init().unwrap();
 
     let args = Args::parse();
-    if args.generate_schema {
-        let schema = Schema::build(Query, Mutation, EmptySubscription).finish();
-        let mut file = File::create("./schemas/shoppingcart.graphql")?;
-        let sdl_export_options = SDLExportOptions::new().federation();
-        let schema_sdl = schema.sdl_with_options(sdl_export_options);
-        file.write_all(schema_sdl.as_bytes())?;
-        info!("GraphQL schema: ./schemas/shoppingcart.graphql was successfully generated!");
+    if args.generate_schemas {
+        generate_schemas()?;
     } else {
         start_service().await;
     }
+    Ok(())
+}
+
+/// Generates GraphQL schemas `shoppingcart.graphql` and `shoppingcart-unfederated.graphql` in `./schemas`.
+fn generate_schemas() -> std::io::Result<()> {
+    let schema = Schema::build(Query, Mutation, EmptySubscription).finish();
+    let mut file = File::create("./schemas/shoppingcart.graphql")?;
+    let mut file_unfederated = File::create("./schemas/shoppingcart-unfederated.graphql")?;
+    let sdl_export_options = SDLExportOptions::new().federation();
+    let sdl_export_options_unfederated = SDLExportOptions::new();
+    let schema_sdl = schema.sdl_with_options(sdl_export_options);
+    let schema_sdl_unfederated = schema.sdl_with_options(sdl_export_options_unfederated);
+    file.write_all(schema_sdl.as_bytes())?;
+    file_unfederated.write_all(schema_sdl_unfederated.as_bytes())?;
+    info!("GraphQL schemas `shoppingcart.graphql` and `shoppingcart-unfederated.graphql` were successfully generated in `./schemas`");
     Ok(())
 }
 
@@ -129,7 +139,6 @@ async fn start_service() {
     let schema = Schema::build(Query, Mutation, EmptySubscription)
         .extension(Logger)
         .data(db_client.clone())
-        .enable_federation()
         .finish();
 
     let graphiql = Router::new().route("/", get(graphiql).post_service(GraphQL::new(schema)));
