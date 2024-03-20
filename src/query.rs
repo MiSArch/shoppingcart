@@ -81,7 +81,8 @@ pub async fn query_shoppingcart_item_user(collection: &Collection<User>, id: Uui
     let find_options = FindOneOptions::builder()
         .projection(Some(doc! {
             "shoppingcart.internal_shoppingcart_items.$": 1,
-            "_id": 0
+            "shoppingcart.last_updated_at": 1,
+            "_id": 1
         }))
         .build();
     let message = format!("ShoppingCartItem of UUID id: `{}` not found.", id);
@@ -97,7 +98,7 @@ pub async fn query_shoppingcart_item_user(collection: &Collection<User>, id: Uui
         .await
     {
         Ok(maybe_user) => maybe_user.ok_or_else(|| Error::new(message.clone())),
-        Err(_) => Err(Error::new(message)),
+        Err(e) => Err(e.into()),
     }
 }
 
