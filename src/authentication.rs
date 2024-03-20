@@ -18,7 +18,9 @@ impl TryFrom<&HeaderMap> for AuthorizedUserHeader {
     //
     // Returns a GraphQL Error if the extraction fails.
     fn try_from(header_map: &HeaderMap) -> Result<Self, Self::Error> {
+        log::info!("test");
         if let Some(authenticate_user_header_value) = header_map.get("Authorized-User") {
+            log::info!("test2");
             if let Ok(authenticate_user_header_str) = authenticate_user_header_value.to_str() {
                 let authenticate_user_header: AuthorizedUserHeader =
                     serde_json::from_str(authenticate_user_header_str)?;
