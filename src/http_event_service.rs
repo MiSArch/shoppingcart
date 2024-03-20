@@ -18,7 +18,7 @@ pub struct Pubsub {
 /// Reponse data to send to Dapr when receiving an event.
 #[derive(Serialize)]
 pub struct TopicEventResponse {
-    pub status: i32,
+    pub status: u8,
 }
 
 /// Default status is `0` -> Ok, according to Dapr specs.

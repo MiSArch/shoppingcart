@@ -19,7 +19,7 @@ pub struct ShoppingCartItemInput {
 }
 
 #[derive(SimpleObject, InputObject)]
-pub struct AddShoppingCartItemInput {
+pub struct CreateShoppingCartItemInput {
     /// UUID of user owning the shopping cart.
     pub id: Uuid,
     /// ShoppingCartItem in shoppingcart to update
