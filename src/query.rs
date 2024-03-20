@@ -19,7 +19,7 @@ impl Query {
         ctx: &Context<'a>,
         #[graphql(desc = "UUID of user to retrieve.")] id: Uuid,
     ) -> Result<User> {
-        let db_client = ctx.data_unchecked::<Database>();
+        let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         query_user(&collection, id).await
     }
@@ -30,7 +30,7 @@ impl Query {
         ctx: &Context<'a>,
         #[graphql(desc = "UUID of shoppingcart to retrieve.")] id: Uuid,
     ) -> Result<ShoppingCartItem> {
-        let db_client = ctx.data_unchecked::<Database>();
+        let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         let user = query_shoppingcart_item_user(&collection, id).await?;
         authenticate_user(&ctx, user._id)?;
@@ -44,10 +44,9 @@ impl Query {
         ctx: &Context<'a>,
         #[graphql(key, desc = "UUID of shoppingcart to retrieve.")] id: Uuid,
     ) -> Result<ShoppingCartItem> {
-        let db_client = ctx.data_unchecked::<Database>();
+        let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         let user = query_shoppingcart_item_user(&collection, id).await?;
-        authenticate_user(&ctx, user._id)?;
         project_user_to_shopping_cart_item(user)
     }
 }
@@ -61,12 +60,12 @@ pub async fn query_shoppingcart(collection: &Collection<User>, id: Uuid) -> Resu
         Ok(maybe_user) => match maybe_user {
             Some(user) => Ok(user.shoppingcart),
             None => {
-                let message = format!("ShoppingCart with UUID id: `{}` not found.", id);
+                let message = format!("ShoppingCart with UUID: `{}` not found.", id);
                 Err(Error::new(message))
             }
         },
         Err(_) => {
-            let message = format!("ShoppingCart with UUID id: `{}` not found.", id);
+            let message = format!("ShoppingCart with UUID: `{}` not found.", id);
             Err(Error::new(message))
         }
     }
@@ -85,7 +84,7 @@ pub async fn query_shoppingcart_item_user(collection: &Collection<User>, id: Uui
             "_id": 1
         }))
         .build();
-    let message = format!("ShoppingCartItem of UUID id: `{}` not found.", id);
+    let message = format!("ShoppingCartItem of UUID: `{}` not found.", id);
     match collection
         .find_one(
             doc! {"shoppingcart.internal_shoppingcart_items": {
@@ -185,12 +184,12 @@ pub async fn query_user(collection: &Collection<User>, id: Uuid) -> Result<User>
         Ok(maybe_user) => match maybe_user {
             Some(user) => Ok(user),
             None => {
-                let message = format!("User with UUID id: `{}` not found.", id);
+                let message = format!("User with UUID: `{}` not found.", id);
                 Err(Error::new(message))
             }
         },
         Err(_) => {
-            let message = format!("User with UUID id: `{}` not found.", id);
+            let message = format!("User with UUID: `{}` not found.", id);
             Err(Error::new(message))
         }
     }

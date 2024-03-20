@@ -12,7 +12,7 @@ use crate::query::query_shoppingcart_item;
 use crate::query::query_shoppingcart_item_by_product_variant_id_and_user_id;
 use crate::shoppingcart_item::ShoppingCartItem;
 use crate::{authentication::authenticate_user, mutation_input_structs::ShoppingCartItemInput};
-use crate::{mutation_input_structs::AddShoppingCartItemInput, query::query_user};
+use crate::{mutation_input_structs::CreateShoppingCartItemInput, query::query_user};
 use crate::{
     mutation_input_structs::UpdateShoppingCartItemInput, query::query_shoppingcart_item_user,
 };
@@ -37,7 +37,7 @@ impl Mutation {
         #[graphql(desc = "UpdateShoppingCartInput")] input: UpdateShoppingCartInput,
     ) -> Result<ShoppingCart> {
         authenticate_user(&ctx, input.id)?;
-        let db_client = ctx.data_unchecked::<Database>();
+        let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         let product_variant_collection: Collection<ProductVariant> =
             db_client.collection::<ProductVariant>("product_variants");
@@ -56,13 +56,13 @@ impl Mutation {
     /// Adds shoppingcart item to a shopping cart.
     ///
     /// Queries for existing item, otherwise adds new shoppingcart item.
-    async fn add_shoppingcart_item<'a>(
+    async fn create_shoppingcart_item<'a>(
         &self,
         ctx: &Context<'a>,
-        #[graphql(desc = "AddShoppingCartItemInput")] input: AddShoppingCartItemInput,
+        #[graphql(desc = "CreateShoppingCartItemInput")] input: CreateShoppingCartItemInput,
     ) -> Result<ShoppingCartItem> {
         authenticate_user(&ctx, input.id)?;
-        let db_client = ctx.data_unchecked::<Database>();
+        let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         let product_variant_collection: Collection<ProductVariant> =
             db_client.collection::<ProductVariant>("product_variants");
@@ -89,7 +89,7 @@ impl Mutation {
         ctx: &Context<'a>,
         #[graphql(desc = "UpdateShoppingCartItemInput")] input: UpdateShoppingCartItemInput,
     ) -> Result<ShoppingCartItem> {
-        let db_client = ctx.data_unchecked::<Database>();
+        let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         let user = query_shoppingcart_item_user(&collection, input.id).await?;
         authenticate_user(&ctx, user._id)?;
@@ -117,7 +117,7 @@ impl Mutation {
         ctx: &Context<'a>,
         #[graphql(desc = "UUID of shoppingcart item to delete.")] id: Uuid,
     ) -> Result<bool> {
-        let db_client = ctx.data_unchecked::<Database>();
+        let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         let user = query_shoppingcart_item_user(&collection, id).await?;
         authenticate_user(&ctx, user._id)?;
@@ -211,10 +211,10 @@ async fn validate_shopping_cart_items(
 /// Adds shoppingcart item to MongoDB collection.
 ///
 /// * `collection` - MongoDB collection to add the shoppingcart item to.
-/// * `input` - `AddShoppingCartItemInput`.
+/// * `input` - `CreateShoppingCartItemInput`.
 async fn add_shoppingcart_item_to_monogdb(
     collection: &Collection<User>,
-    input: AddShoppingCartItemInput,
+    input: CreateShoppingCartItemInput,
 ) -> Result<ShoppingCartItem> {
     let current_timestamp = DateTime::now();
     let shoppingcart_item = ShoppingCartItem {
