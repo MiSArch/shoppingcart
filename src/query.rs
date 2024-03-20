@@ -97,7 +97,7 @@ pub async fn query_shoppingcart_item_user(collection: &Collection<User>, id: Uui
         )
         .await
     {
-        Ok(maybe_user) => maybe_user.ok_or_else(|| Error::new(message.clone())),
+        Ok(maybe_user) => maybe_user.ok_or(Error::new(message.clone())),
         Err(e) => Err(e.into()),
     }
 }
@@ -110,7 +110,7 @@ pub fn project_user_to_shopping_cart_item(user: User) -> Result<ShoppingCartItem
         .iter()
         .next()
         .cloned()
-        .ok_or_else(|| Error::new(message.clone()))
+        .ok_or(Error::new(message.clone()))
 }
 
 /// Queries shoppingcart item user and applies projection directly.
@@ -171,7 +171,7 @@ pub async fn query_shoppingcart_item_user_by_product_variant_id_and_user_id(
         )
         .await
     {
-        Ok(maybe_user) => maybe_user.ok_or_else(|| Error::new(message.clone())),
+        Ok(maybe_user) => maybe_user.ok_or(Error::new(message.clone())),
         Err(_) => Err(Error::new(message)),
     }
 }
