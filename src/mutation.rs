@@ -8,12 +8,14 @@ use mongodb::{
     Collection, Database,
 };
 
-use crate::mutation_input_structs::UpdateShoppingCartItemInput;
 use crate::query::query_shoppingcart_item;
 use crate::query::query_shoppingcart_item_by_product_variant_id_and_user_id;
 use crate::shoppingcart_item::ShoppingCartItem;
 use crate::{authentication::authenticate_user, mutation_input_structs::ShoppingCartItemInput};
 use crate::{mutation_input_structs::AddShoppingCartItemInput, query::query_user};
+use crate::{
+    mutation_input_structs::UpdateShoppingCartItemInput, query::query_shoppingcart_item_user,
+};
 
 use crate::user::User;
 use crate::{
@@ -89,6 +91,8 @@ impl Mutation {
     ) -> Result<ShoppingCartItem> {
         let db_client = ctx.data_unchecked::<Database>();
         let collection: Collection<User> = db_client.collection::<User>("users");
+        let user = query_shoppingcart_item_user(&collection, input.id).await?;
+        authenticate_user(&ctx, user._id)?;
         if let Err(_) = collection
             .update_one(
                 doc! {"shoppingcart.internal_shoppingcart_items._id": input.id },
@@ -115,6 +119,8 @@ impl Mutation {
     ) -> Result<bool> {
         let db_client = ctx.data_unchecked::<Database>();
         let collection: Collection<User> = db_client.collection::<User>("users");
+        let user = query_shoppingcart_item_user(&collection, id).await?;
+        authenticate_user(&ctx, user._id)?;
         if let Err(_) = collection
             .update_one(
                 doc! {"shoppingcart.internal_shoppingcart_items._id": id },

@@ -81,7 +81,8 @@ pub async fn query_shoppingcart_item_user(collection: &Collection<User>, id: Uui
     let find_options = FindOneOptions::builder()
         .projection(Some(doc! {
             "shoppingcart.internal_shoppingcart_items.$": 1,
-            "_id": 0
+            "shoppingcart.last_updated_at": 1,
+            "_id": 1
         }))
         .build();
     let message = format!("ShoppingCartItem of UUID id: `{}` not found.", id);
@@ -96,8 +97,8 @@ pub async fn query_shoppingcart_item_user(collection: &Collection<User>, id: Uui
         )
         .await
     {
-        Ok(maybe_user) => maybe_user.ok_or_else(|| Error::new(message.clone())),
-        Err(_) => Err(Error::new(message)),
+        Ok(maybe_user) => maybe_user.ok_or(Error::new(message.clone())),
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -109,7 +110,7 @@ pub fn project_user_to_shopping_cart_item(user: User) -> Result<ShoppingCartItem
         .iter()
         .next()
         .cloned()
-        .ok_or_else(|| Error::new(message.clone()))
+        .ok_or(Error::new(message.clone()))
 }
 
 /// Queries shoppingcart item user and applies projection directly.
@@ -170,7 +171,7 @@ pub async fn query_shoppingcart_item_user_by_product_variant_id_and_user_id(
         )
         .await
     {
-        Ok(maybe_user) => maybe_user.ok_or_else(|| Error::new(message.clone())),
+        Ok(maybe_user) => maybe_user.ok_or(Error::new(message.clone())),
         Err(_) => Err(Error::new(message)),
     }
 }
