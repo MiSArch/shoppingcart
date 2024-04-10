@@ -12,6 +12,7 @@ use axum::{
     routing::{get, post},
     Router, Server,
 };
+use bson::Uuid;
 use clap::{arg, command, Parser};
 use simple_logger::SimpleLogger;
 
@@ -35,7 +36,7 @@ use user::User;
 mod authentication;
 
 mod http_event_service;
-use http_event_service::{list_topic_subscriptions, on_topic_event, HttpEventServiceState};
+use http_event_service::{delete_ordered_shoppingcart_items_in_mongodb, list_topic_subscriptions, on_order_creation_event, on_topic_event, HttpEventServiceState, OrderEventData, OrderItemEventData};
 
 use foreign_types::ProductVariant;
 
@@ -78,6 +79,10 @@ async fn build_dapr_router(db_client: Database) -> Router {
     // Define routes.
     let app = Router::new()
         .route("/dapr/subscribe", get(list_topic_subscriptions))
+        .route(
+            "/on-order-creation-event",
+            post(on_order_creation_event),
+        )
         .route("/on-topic-event", post(on_topic_event))
         .with_state(HttpEventServiceState {
             product_variant_collection,
