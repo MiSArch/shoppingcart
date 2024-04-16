@@ -132,6 +132,7 @@ pub async fn on_order_creation_event(
     Ok(Json(TopicEventResponse::default()))
 }
 
+/// Removes ordered shopping cart items from the users shopping cart.
 pub async fn delete_ordered_shoppingcart_items_in_mongodb(collection: &Collection<User>, order_event_data: OrderEventData) -> Result<(), StatusCode> {
     let shoppingcart_item_ids: Vec<Uuid> = order_event_data.order_items.iter().map(|o| o.shopping_cart_item_id).collect();
     match collection
