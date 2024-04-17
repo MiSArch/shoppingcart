@@ -7,7 +7,7 @@ use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use authentication::AuthorizedUserHeader;
 use axum::{
     extract::State,
-    http::HeaderMap,
+    http::{HeaderMap, StatusCode},
     response::{self, IntoResponse},
     routing::{get, post},
     Router, Server,
@@ -158,6 +158,7 @@ async fn start_service() {
 
     let graphiql = Router::new()
         .route("/", get(graphiql).post(graphql_handler))
+        .route("/health", get(StatusCode::OK))
         .with_state(schema);
     let dapr_router = build_dapr_router(db_client).await;
     let app = Router::new().merge(graphiql).merge(dapr_router);
