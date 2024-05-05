@@ -6,15 +6,15 @@ use std::collections::HashSet;
 pub struct UpdateShoppingCartInput {
     /// UUID of user owning shopping cart.
     pub id: Uuid,
-    /// ShoppingCartItems of shoppingcart to update
+    /// Shopping cart items of shopping cart to update.
     pub shopping_cart_items: Option<HashSet<ShoppingCartItemInput>>,
 }
 
 #[derive(SimpleObject, InputObject, Eq, Hash, PartialEq)]
 pub struct ShoppingCartItemInput {
-    /// Count of items in basket.
+    /// Count of shopping cart items in cart.
     pub count: u32,
-    /// Uuid of product variant.
+    /// UUID of product variant.
     pub product_variant_id: Uuid,
 }
 
@@ -22,7 +22,7 @@ pub struct ShoppingCartItemInput {
 pub struct CreateShoppingCartItemInput {
     /// UUID of user owning the shopping cart.
     pub id: Uuid,
-    /// ShoppingCartItem in shoppingcart to update
+    /// shopping cart item in shopping cart to update
     pub shopping_cart_item: ShoppingCartItemInput,
 }
 
@@ -30,6 +30,6 @@ pub struct CreateShoppingCartItemInput {
 pub struct UpdateShoppingCartItemInput {
     /// UUID of shoppingcart item to update.
     pub id: Uuid,
-    /// Count of items in basket.
+    /// Count of shopping cart items in cart.
     pub count: u32,
 }

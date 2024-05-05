@@ -1,0 +1,40 @@
+curl -X POST http://localhost:3500/v1.0/publish/pubsub/order/order/created -H "Content-Type: application/json" -d '{
+  "id": "d290f1ee-6c54-4b01-90e6-d701748f0852",
+  "userId": "cef15b33-b7f6-45ab-a697-cdf136ec5289",
+  "createdAt": "2024-03-20T15:00:00Z",
+  "orderStatus": "PLACED",
+  "placedAt": "2024-03-20T15:05:00Z",
+  "orderItems": [
+    {
+      "id": "76e1b560-daf1-414c-bd0d-0b2d4d9cabb8",
+      "createdAt": "2024-03-20T15:00:00Z",
+      "productVariantVersionId": "19d12f65-4e78-42cd-b35e-acaf375680a0",
+      "productVariantId": "95c2e702-6501-4e4e-805b-6a0af2aafa13",
+      "taxRateVersionId": "eedb7c4b-657a-4f06-8207-ebd8f6d7a985",
+      "shoppingCartItemId": "67f97c3a-aeeb-4235-80bf-7851fa26019b",
+      "count": 2,
+      "compensatableAmount": 1500,
+      "shipment": {
+        "status": "SHIPPED",
+        "shipmentMethodId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+      }
+    },
+    {
+      "id": "76e1b560-daf1-414c-bd0d-0b2d4d9cabb9",
+      "createdAt": "2024-03-20T15:00:00Z",
+      "productVariantVersionId": "c3de6696-239a-4666-b4a7-dc814e79199f",
+      "productVariantId": "5e771e5d-eebe-45a3-8e62-5026d79d8ac5",
+      "taxRateVersionId": "eedb7c4b-657a-4f06-8207-ebd8f6d7a985",
+      "shoppingCartItemId": "e9876b13-ae88-4f70-8b6c-85176c60cbb2",
+      "count": 2,
+      "compensatableAmount": 1500,
+      "shipment": {
+        "status": "SHIPPED",
+        "shipmentMethodId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+      },
+      "discountIds": []
+    }
+  ],
+  "shipmentAddressId": "ab402643-4f6e-4d2e-9e09-b0a96ee82683",
+  "invoiceAddressId": "06b1e607-7a83-450d-8268-250cf02e1485"
+}'

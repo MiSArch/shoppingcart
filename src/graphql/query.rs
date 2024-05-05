@@ -1,18 +1,21 @@
-use crate::{
-    authentication::authenticate_user, shoppingcart_item::ShoppingCartItem, user::User,
-    ShoppingCart,
-};
+use std::any::type_name;
+
 use async_graphql::{Context, Error, Object, Result};
 
 use bson::Uuid;
 use mongodb::{bson::doc, options::FindOneOptions, Collection, Database};
+use serde::Deserialize;
 
-/// Describes GraphQL shoppingcart queries.
+use crate::authorization::authorize_user;
+
+use super::model::{shoppingcart::ShoppingCart, shoppingcart_item::ShoppingCartItem, user::User};
+
+/// Describes GraphQL shopping cart queries.
 pub struct Query;
 
 #[Object]
 impl Query {
-    /// Entity resolver for user of specific id.
+    /// Entity resolver for user of specific UUID.
     #[graphql(entity)]
     async fn user_entity_resolver<'a>(
         &self,
@@ -21,10 +24,10 @@ impl Query {
     ) -> Result<User> {
         let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
-        query_user(&collection, id).await
+        query_object(&collection, id).await
     }
 
-    /// Retrieves shoppingcart item of specific id.
+    /// Retrieves shopping cart item of specific UUID.
     async fn shoppingcart_item<'a>(
         &self,
         ctx: &Context<'a>,
@@ -33,11 +36,11 @@ impl Query {
         let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         let user = query_shoppingcart_item_user(&collection, id).await?;
-        authenticate_user(&ctx, user._id)?;
+        authorize_user(&ctx, Some(user._id))?;
         project_user_to_shopping_cart_item(user)
     }
 
-    /// Entity resolver for shoppingcart item of specific id.
+    /// Entity resolver for shopping cart item of specific UUID.
     #[graphql(entity)]
     async fn shoppingcart_item_entity_resolver<'a>(
         &self,
@@ -51,10 +54,10 @@ impl Query {
     }
 }
 
-/// Shared function to query a shoppingcart from a MongoDB collection of shoppingcarts.
+/// Shared function to query a shopping cart from a MongoDB collection of shopping carts.
 ///
 /// * `connection` - MongoDB database connection.
-/// * `stringified_uuid` - UUID of shoppingcart as String.
+/// * `id` - UUID of shopping cart.
 pub async fn query_shoppingcart(collection: &Collection<User>, id: Uuid) -> Result<ShoppingCart> {
     match collection.find_one(doc! {"_id": id }, None).await {
         Ok(maybe_user) => match maybe_user {
@@ -71,11 +74,11 @@ pub async fn query_shoppingcart(collection: &Collection<User>, id: Uuid) -> Resu
     }
 }
 
-/// Shared function to query a shoppingcart item from a MongoDB collection of users.
-/// Returns User which only contains the queried shoppingcart item.
+/// Shared function to query a shopping cart item from a MongoDB collection of users.
+/// Returns user which only contains the queried shopping cart item.
 ///
 /// * `connection` - MongoDB database connection.
-/// * `id` - UUID of shoppingcart item.
+/// * `id` - UUID of shopping cart item.
 pub async fn query_shoppingcart_item_user(collection: &Collection<User>, id: Uuid) -> Result<User> {
     let find_options = FindOneOptions::builder()
         .projection(Some(doc! {
@@ -101,7 +104,9 @@ pub async fn query_shoppingcart_item_user(collection: &Collection<User>, id: Uui
     }
 }
 
-/// Projects result of shoppingcart item query, which is of type User, to the contained ShoppingCartItem.
+/// Projects result of shopping cart item query, which is of type `User``, to the contained shopping cart items.
+///
+/// * `user` - User to project to shoppingc art items.
 pub fn project_user_to_shopping_cart_item(user: User) -> Result<ShoppingCartItem> {
     let message = format!("Projection failed, shoppingcart item could not be extracted from user.");
     user.shoppingcart
@@ -112,7 +117,7 @@ pub fn project_user_to_shopping_cart_item(user: User) -> Result<ShoppingCartItem
         .ok_or(Error::new(message.clone()))
 }
 
-/// Queries shoppingcart item user and applies projection directly.
+/// Queries shopping cart item user and applies projection directly.
 ///
 /// * `connection` - MongoDB database connection.
 /// * `id` - UUID of user.
@@ -124,9 +129,10 @@ pub async fn query_shoppingcart_item(
     project_user_to_shopping_cart_item(user)
 }
 
-/// Queries shoppingcart item user and applies projection directly.
+/// Queries shopping cart item user by a product variant UUID and user UUID and applies projection directly.
 ///
 /// * `connection` - MongoDB database connection.
+/// * `product_variant_id` - UUID of product variant.
 /// * `id` - UUID of user.
 pub async fn query_shoppingcart_item_by_product_variant_id_and_user_id(
     collection: &Collection<User>,
@@ -142,10 +148,11 @@ pub async fn query_shoppingcart_item_by_product_variant_id_and_user_id(
     project_user_to_shopping_cart_item(user)
 }
 
-/// Shared function to query a shoppingcart item from a MongoDB collection of users.
-/// Returns User which only contains the queried shoppingcart item.
+/// Shared function to query a shopping cart item from a MongoDB collection of users by a product variant UUID and user UUID.
+/// Returns user which only contains the queried shopping cart item.
 ///
 /// * `connection` - MongoDB database connection.
+/// * `product_variant_id` - UUID of product variant.
 /// * `id` - UUID of user.
 pub async fn query_shoppingcart_item_user_by_product_variant_id_and_user_id(
     collection: &Collection<User>,
@@ -175,21 +182,24 @@ pub async fn query_shoppingcart_item_user_by_product_variant_id_and_user_id(
     }
 }
 
-/// Shared function to query a user from a MongoDB collection of users.
+/// Shared function to query an object: `T`` from a MongoDB collection of object: `T`.
 ///
 /// * `connection` - MongoDB database connection.
-/// * `id` - UUID of user.
-pub async fn query_user(collection: &Collection<User>, id: Uuid) -> Result<User> {
+/// * `id` - UUID of object.
+pub async fn query_object<T: for<'a> Deserialize<'a> + Unpin + Send + Sync>(
+    collection: &Collection<T>,
+    id: Uuid,
+) -> Result<T> {
     match collection.find_one(doc! {"_id": id }, None).await {
-        Ok(maybe_user) => match maybe_user {
-            Some(user) => Ok(user),
+        Ok(maybe_object) => match maybe_object {
+            Some(object) => Ok(object),
             None => {
-                let message = format!("User with UUID: `{}` not found.", id);
+                let message = format!("{} with UUID: `{}` not found.", type_name::<T>(), id);
                 Err(Error::new(message))
             }
         },
         Err(_) => {
-            let message = format!("User with UUID: `{}` not found.", id);
+            let message = format!("{} with UUID: `{}` not found.", type_name::<T>(), id);
             Err(Error::new(message))
         }
     }
