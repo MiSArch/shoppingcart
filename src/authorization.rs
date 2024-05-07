@@ -42,8 +42,6 @@ enum Role {
 
 impl Role {
     /// Defines if user has a permissive role.
-    ///
-    // * `self` - This role instance.
     fn is_permissive(self) -> bool {
         match self {
             Self::Buyer => false,
