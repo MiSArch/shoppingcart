@@ -8,35 +8,37 @@ use mongodb::{
     Collection, Database,
 };
 
-use crate::query::query_shoppingcart_item;
-use crate::query::query_shoppingcart_item_by_product_variant_id_and_user_id;
-use crate::shoppingcart_item::ShoppingCartItem;
-use crate::{authentication::authenticate_user, mutation_input_structs::ShoppingCartItemInput};
-use crate::{mutation_input_structs::CreateShoppingCartItemInput, query::query_user};
-use crate::{
-    mutation_input_structs::UpdateShoppingCartItemInput, query::query_shoppingcart_item_user,
+use crate::authorization::authorize_user;
+
+use super::{
+    model::{
+        foreign_types::ProductVariant, shoppingcart::ShoppingCart,
+        shoppingcart_item::ShoppingCartItem, user::User,
+    },
+    mutation_input_structs::{
+        CreateShoppingCartItemInput, ShoppingCartItemInput, UpdateShoppingCartInput,
+        UpdateShoppingCartItemInput,
+    },
+    query::{
+        query_object, query_shoppingcart, query_shoppingcart_item,
+        query_shoppingcart_item_by_product_variant_id_and_user_id, query_shoppingcart_item_user,
+    },
 };
 
-use crate::user::User;
-use crate::{
-    foreign_types::ProductVariant, mutation_input_structs::UpdateShoppingCartInput,
-    query::query_shoppingcart, shoppingcart::ShoppingCart,
-};
-
-/// Describes GraphQL shoppingcart mutations.
+/// Describes GraphQL shopping cart mutations.
 pub struct Mutation;
 
 #[Object]
 impl Mutation {
-    /// Updates shoppingcart_items of a specific shoppingcart referenced with an id.
+    /// Updates shopping cart items of a specific shopping cart referenced with a UUID.
     ///
-    /// Formats UUIDs as hyphenated lowercase Strings.
+    /// Formats UUIDs as hyphenated lowercase strings.
     async fn update_shoppingcart<'a>(
         &self,
         ctx: &Context<'a>,
         #[graphql(desc = "UpdateShoppingCartInput")] input: UpdateShoppingCartInput,
     ) -> Result<ShoppingCart> {
-        authenticate_user(&ctx, input.id)?;
+        authorize_user(&ctx, Some(input.id))?;
         let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         let product_variant_collection: Collection<ProductVariant> =
@@ -53,7 +55,7 @@ impl Mutation {
         Ok(shoppingcart)
     }
 
-    /// Adds shoppingcart item to a shopping cart.
+    /// Adds shopping cart item to a shopping cart.
     ///
     /// Queries for existing item, otherwise adds new shoppingcart item.
     async fn create_shoppingcart_item<'a>(
@@ -61,7 +63,7 @@ impl Mutation {
         ctx: &Context<'a>,
         #[graphql(desc = "CreateShoppingCartItemInput")] input: CreateShoppingCartItemInput,
     ) -> Result<ShoppingCartItem> {
-        authenticate_user(&ctx, input.id)?;
+        authorize_user(&ctx, Some(input.id))?;
         let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         let product_variant_collection: Collection<ProductVariant> =
@@ -80,10 +82,7 @@ impl Mutation {
         }
     }
 
-    /// Updates a single shoppingcart item.
-    ///
-    /// * `collection` - MongoDB collection to update.
-    /// * `input` - `UpdateShoppingCartItemInput`.
+    /// Updates a single shopping cart item.
     async fn update_shoppingcart_item<'a>(
         &self,
         ctx: &Context<'a>,
@@ -92,7 +91,7 @@ impl Mutation {
         let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         let user = query_shoppingcart_item_user(&collection, input.id).await?;
-        authenticate_user(&ctx, user._id)?;
+        authorize_user(&ctx, Some(user._id))?;
         if let Err(_) = collection
             .update_one(
                 doc! {"shoppingcart.internal_shoppingcart_items._id": input.id },
@@ -111,7 +110,7 @@ impl Mutation {
         Ok(shoppingcart_item)
     }
 
-    /// Deletes shoppingcart item of id.
+    /// Deletes shoppingcart item of UUID.
     async fn delete_shoppingcart_item<'a>(
         &self,
         ctx: &Context<'a>,
@@ -120,7 +119,7 @@ impl Mutation {
         let db_client = ctx.data::<Database>()?;
         let collection: Collection<User> = db_client.collection::<User>("users");
         let user = query_shoppingcart_item_user(&collection, id).await?;
-        authenticate_user(&ctx, user._id)?;
+        authorize_user(&ctx, Some(user._id))?;
         if let Err(_) = collection
             .update_one(
                 doc! {"shoppingcart.internal_shoppingcart_items._id": id },
@@ -139,10 +138,12 @@ impl Mutation {
     }
 }
 
-/// Updates shopping cart items of a shoppingcart.
+/// Updates shopping cart items of a shopping cart.
 ///
 /// * `collection` - MongoDB collection to update.
-/// * `input` - `UpdateShoppingCartInput`.
+/// * `product_variant_collection` - MongoDB product variant collection used for product variant validation.
+/// * `input` - Update withlist input containing shopping cart items.
+/// * `current_timestamp` - Timestamp of product variant ids update.
 async fn update_shopping_cart_items(
     collection: &Collection<User>,
     product_variant_collection: &Collection<ProductVariant>,
@@ -172,9 +173,12 @@ async fn update_shopping_cart_items(
     Ok(())
 }
 
-/// Checks if product variants in update shoppingcart item inputs are in the system (MongoDB database populated with events).
+/// Checks if product variants in shopping cart item inputs are in the system (MongoDB database populated with events).
 ///
-/// Used before adding or modifying shopping cart items.
+/// Used before adding or modifying shoppingcart items.
+///
+/// * `collection` - MongoDB collection to validate against.
+/// * `shoppingcart_items` - Shopping cart item inputs to validate.
 async fn validate_shopping_cart_items(
     collection: &Collection<ProductVariant>,
     shoppingcart_items: &HashSet<ShoppingCartItemInput>,
@@ -189,13 +193,13 @@ async fn validate_shopping_cart_items(
     {
         Ok(cursor) => {
             let product_variants: Vec<ProductVariant> = cursor.try_collect().await?;
-            product_variant_ids_vec.iter().fold(Ok(()), |_, p| {
-                match product_variants.contains(&ProductVariant { _id: *p }) {
+            product_variant_ids_vec.iter().fold(Ok(()), |_, id| {
+                match product_variants.contains(&ProductVariant { _id: *id }) {
                     true => Ok(()),
                     false => {
                         let message = format!(
                             "Product variant with the UUID: `{}` is not present in the system.",
-                            p
+                            id
                         );
                         Err(Error::new(message))
                     }
@@ -208,10 +212,10 @@ async fn validate_shopping_cart_items(
     }
 }
 
-/// Adds shoppingcart item to MongoDB collection.
+/// Adds shopping cart item to MongoDB collection.
 ///
-/// * `collection` - MongoDB collection to add the shoppingcart item to.
-/// * `input` - `CreateShoppingCartItemInput`.
+/// * `collection` - MongoDB collection to add the shopping cart item to.
+/// * `input` - Create shopping cart item input containing shopping cart item.
 async fn add_shoppingcart_item_to_monogdb(
     collection: &Collection<User>,
     input: CreateShoppingCartItemInput,
@@ -244,15 +248,19 @@ async fn add_shoppingcart_item_to_monogdb(
 
 /// Checks if user is in the system (MongoDB database populated with events).
 ///
-/// Used before adding shoppingcart item.
+/// * `collection` - MongoDB collection to validate against.
+/// * `id` - User UUID to validate.
 async fn validate_user(collection: &Collection<User>, id: Uuid) -> Result<()> {
-    query_user(&collection, id).await.map(|_| ())
+    query_object(&collection, id).await.map(|_| ())
 }
 
 /// Checks if product variant in shoppingcart item input is in the system (MongoDB database populated with events).
 ///
 /// Used before adding or modifying shopping cart items.
-/// This is a separate function from validate_shopping_cart_items which is designed for only checking one ShoppingCartItem.
+/// This is a separate function from `validate_shopping_cart_items`, which is designed for only checking one shopping cart items instead of multiple.
+///
+/// * `collection` - MongoDB collection to validate against.
+/// * `shoppingcart_item_input` - Shopping cart item input to validate.
 async fn validate_shopping_cart_item(
     collection: &Collection<ProductVariant>,
     shoppingcart_item_input: &ShoppingCartItemInput,

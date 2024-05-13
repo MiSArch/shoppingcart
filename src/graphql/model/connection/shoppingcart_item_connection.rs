@@ -1,8 +1,8 @@
 use async_graphql::SimpleObject;
 
-use crate::{base_connection::BaseConnection, shoppingcart_item::ShoppingCartItem};
+use super::{super::shoppingcart_item::ShoppingCartItem, base_connection::BaseConnection};
 
-/// A connection of ShoppingCart Items.
+/// A connection of shopping cart items.
 #[derive(SimpleObject)]
 #[graphql(shareable)]
 pub struct ShoppingCartItemConnection {

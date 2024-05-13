@@ -1,23 +1,20 @@
 use std::cmp::Ordering;
 
-use async_graphql::{
-    connection::{Edge, EmptyFields},
-    OutputType, SimpleObject,
-};
+use async_graphql::SimpleObject;
 use bson::Uuid;
 use bson::{datetime::DateTime, doc, Bson};
 use serde::{Deserialize, Serialize};
 
-use crate::foreign_types::ProductVariant;
+use super::foreign_types::ProductVariant;
 
-/// The ShoppingCart of a user.
+/// Shopping cart item in a shopping cart of a user.
 #[derive(Debug, Serialize, Deserialize, Eq, Hash, PartialEq, Clone, SimpleObject)]
 pub struct ShoppingCartItem {
-    /// ShoppingCartItem UUID.
+    /// Shopping cart item UUID.
     pub _id: Uuid,
     /// Count of items in basket.
     pub count: u32,
-    /// Timestamp when ShoppingCartItem was added.
+    /// Timestamp when shopping cart item was added.
     pub added_at: DateTime,
     /// Product variant of shopping cart item.
     pub product_variant: ProductVariant,
@@ -26,18 +23,6 @@ pub struct ShoppingCartItem {
 impl From<ShoppingCartItem> for Uuid {
     fn from(value: ShoppingCartItem) -> Self {
         value._id
-    }
-}
-
-pub struct NodeWrapper<Node>(pub Node);
-
-impl<Node> From<NodeWrapper<Node>> for Edge<uuid::Uuid, Node, EmptyFields>
-where
-    Node: Into<uuid::Uuid> + OutputType + Clone,
-{
-    fn from(value: NodeWrapper<Node>) -> Self {
-        let uuid = Into::<uuid::Uuid>::into(value.0.clone());
-        Edge::new(uuid, value.0)
     }
 }
 

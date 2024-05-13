@@ -6,19 +6,20 @@ use bson::datetime::DateTime;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
+use super::{
+    connection::shoppingcart_item_connection::ShoppingCartItemConnection,
     order_datatypes::{CommonOrderInput, OrderDirection},
     shoppingcart_item::ShoppingCartItem,
-    shoppingcart_item_connection::ShoppingCartItemConnection,
 };
 
-/// The ShoppingCart of a user.
+/// The shopping cart of a user.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, SimpleObject)]
 #[graphql(complex)]
 pub struct ShoppingCart {
-    /// Timestamp when ShoppingCart was last updated.
+    /// Timestamp when shopping cart was last updated.
     pub last_updated_at: DateTime,
     #[graphql(skip)]
+    /// Internal attribute containing all shopping cart items.
     pub internal_shoppingcart_items: HashSet<ShoppingCartItem>,
 }
 
@@ -33,7 +34,7 @@ impl ShoppingCart {
 
 #[ComplexObject]
 impl ShoppingCart {
-    /// Retrieves product variants.
+    /// Retrieves shoppingcart items in shopping cart.
     async fn shoppingcart_items(
         &self,
         #[graphql(desc = "Describes that the `first` N shoppingcarts should be retrieved.")]
@@ -66,7 +67,7 @@ impl ShoppingCart {
     }
 }
 
-/// Sorts vector of product variants according to BaseOrder.
+/// Sorts vector of product variants according to base order.
 ///
 /// * `shoppingcart_items` - Vector of product variants to sort.
 /// * `order_by` - Specifies order of sorted result.
@@ -76,11 +77,17 @@ fn sort_shoppingcart_items(
 ) {
     let comparator: fn(&ShoppingCartItem, &ShoppingCartItem) -> bool =
         match order_by.unwrap_or_default().direction.unwrap_or_default() {
-            OrderDirection::Asc => |x, y| x < y,
-            OrderDirection::Desc => |x, y| x > y,
+            OrderDirection::Asc => |first_shopping_cart_item, second_shopping_cart_item| {
+                first_shopping_cart_item < second_shopping_cart_item
+            },
+            OrderDirection::Desc => |first_shopping_cart_item, second_shopping_cart_item| {
+                first_shopping_cart_item > second_shopping_cart_item
+            },
         };
-    shoppingcart_items.sort_by(|x, y| match comparator(x, y) {
-        true => Ordering::Less,
-        false => Ordering::Greater,
+    shoppingcart_items.sort_by(|first_shopping_cart_item, second_shopping_cart_item| {
+        match comparator(first_shopping_cart_item, second_shopping_cart_item) {
+            true => Ordering::Less,
+            false => Ordering::Greater,
+        }
     });
 }
