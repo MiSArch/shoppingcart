@@ -1,3 +1,0 @@
-[submodule "axum-otel-metrics"]
-    path = axum-otel-metrics
-    url = ../axum-otel-metrics
